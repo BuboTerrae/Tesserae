@@ -13,15 +13,21 @@ pub type CrosstermTerminal = ratatui::Terminal<ratatui::backend::CrosstermBacken
 pub struct Tui {
     terminal: CrosstermTerminal,
     pub events: EventHandler,
+    active: bool,
 }
 
 impl Tui {
     pub fn new(terminal: CrosstermTerminal, events: EventHandler) -> Self {
-        Self { terminal, events }
+        Self {
+            terminal,
+            events,
+            active: false,
+        }
     }
 
     pub fn enter(&mut self) -> Result<()> {
         terminal::enable_raw_mode()?;
+        self.active = true;
         execute!(io::stderr(), EnterAlternateScreen, EnableMouseCapture)?;
 
         let panic_hook = panic::take_hook();
@@ -42,13 +48,25 @@ impl Tui {
     }
 
     pub fn exit(&mut self) -> Result<()> {
-        Self::reset()?;
-        self.terminal.show_cursor()?;
+        if self.active {
+            Self::reset()?;
+            self.terminal.show_cursor()?;
+            self.active = false;
+        }
         Ok(())
     }
 
     pub fn draw(&mut self, app: &mut App) -> Result<()> {
         self.terminal.draw(|frame| ui::render(app, frame))?;
         Ok(())
+    }
+}
+
+impl Drop for Tui {
+    fn drop(&mut self) {
+        if self.active {
+            let _ = Self::reset();
+            let _ = self.terminal.show_cursor();
+        }
     }
 }

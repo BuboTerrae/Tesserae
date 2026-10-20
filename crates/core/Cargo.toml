@@ -7,3 +7,5 @@ edition.workspace = true
 serde.workspace = true
 reqwest.workspace = true
 thiserror.workspace = true
+portable-pty.workspace = true
+alacritty_terminal.workspace = true

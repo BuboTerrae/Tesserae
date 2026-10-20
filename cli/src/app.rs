@@ -1,29 +1,45 @@
-#[derive(Debug, Default)]
+use color_eyre::{Result, eyre::eyre};
+use tesserae_core::terminal::{Snapshot, TerminalSession};
+
 pub struct App {
-    pub counter: u8,
+    session: TerminalSession,
     pub exit: bool,
 }
 
 impl App {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(shell: &str, cols: u16, rows: u16) -> Result<Self> {
+        let session =
+            TerminalSession::spawn(shell, cols.max(1), rows.max(1)).map_err(|e| eyre!("{e}"))?;
+
+        Ok(Self {
+            session,
+            exit: false,
+        })
     }
 
-    pub fn tick(&self) {}
+    pub fn write(&self, bytes: &[u8]) -> Result<()> {
+        self.session.write(bytes).map_err(|e| eyre!("{e}"))
+    }
+
+    pub fn resize(&self, cols: u16, rows: u16) -> Result<()> {
+        self.session
+            .resize(cols.max(1), rows.max(1))
+            .map_err(|e| eyre!("{e}"))
+    }
+
+    pub fn scroll(&self, delta: i32) {
+        self.session.scroll(delta);
+    }
+
+    pub fn snapshot(&self) -> Snapshot {
+        self.session.snapshot()
+    }
 
     pub fn quit(&mut self) {
-        self.exit = true
+        self.exit = true;
     }
 
-    pub fn increment_counter(&mut self) {
-        if let Some(res) = self.counter.checked_add(1) {
-            self.counter = res;
-        }
-    }
-
-    pub fn decrement_counter(&mut self) {
-        if let Some(res) = self.counter.checked_sub(1) {
-            self.counter = res;
-        }
+    pub fn child_exited(&mut self) -> Result<bool> {
+        self.session.child_exited().map_err(|e| eyre!("{e}"))
     }
 }

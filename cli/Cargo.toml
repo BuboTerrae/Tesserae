@@ -1,13 +1,13 @@
 [package]
-name = "tessearea-cli"
-version = "0.1.0"
-edition = "2024"
+name = "tesserae-cli"
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
 tesserae-core = { path = "../crates/core" }
-anyhow = "1.0.104"
+anyhow.workspace = true
 color-eyre = "0.6.5"
 crossterm = "0.29.0"
 ratatui = "0.30.2"
-serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.140"
+serde.workspace = true
+serde_json.workspace = true

@@ -1,5 +1,6 @@
 pub mod app;
 pub mod event;
+pub mod input;
 pub mod tui;
 pub mod ui;
 pub mod update;
@@ -7,16 +8,22 @@ pub mod update;
 use app::App;
 use event::{Event, EventHandler};
 use tui::Tui;
-use update::update;
+use update::{update, update_mouse};
 
 use color_eyre::Result;
-use ratatui::{Terminal, backend::CrosstermBackend};
+use ratatui::{Terminal, backend::CrosstermBackend, crossterm::terminal};
+use tesserae_core::pty::PtySession;
 
 fn main() -> Result<()> {
-    let mut app = App::new();
+    color_eyre::install()?;
+
+    let (cols, rows) = terminal::size()?;
+    let shell = PtySession::default_shell();
+    let mut app = App::new(&shell, cols, rows)?;
+
     let backend = CrosstermBackend::new(std::io::stderr());
     let terminal = Terminal::new(backend)?;
-    let events = EventHandler::new(250);
+    let events = EventHandler::new(33);
     let mut tui = Tui::new(terminal, events);
     tui.enter()?;
 
@@ -24,10 +31,14 @@ fn main() -> Result<()> {
         tui.draw(&mut app)?;
 
         match tui.events.next()? {
-            Event::Tick => {}
-            Event::Key(key_event) => update(&mut app, key_event),
-            Event::Mouse(_) => {}
-            Event::Resize(_, _) => {}
+            Event::Tick => {
+                if app.child_exited()? {
+                    app.quit();
+                }
+            }
+            Event::Key(key_event) => update(&mut app, key_event)?,
+            Event::Mouse(mouse_event) => update_mouse(&mut app, mouse_event),
+            Event::Resize(w, h) => app.resize(w, h)?,
         };
     }
 

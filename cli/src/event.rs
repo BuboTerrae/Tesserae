@@ -37,24 +37,40 @@ impl EventHandler {
                         .checked_sub(last_tick.elapsed())
                         .unwrap_or(tick_rate);
 
-                    if event::poll(timeout).expect("unable to poll for event") {
-                        match event::read().expect("unable to read event") {
-                            CrosstermEvent::Key(e) => {
-                                if e.kind == event::KeyEventKind::Press {
-                                    sender.send(Event::Key(e))
-                                } else {
-                                    Ok(())
+                    match event::poll(timeout) {
+                        Ok(true) => {
+                            let Ok(crossterm_event) = event::read() else {
+                                break;
+                            };
+
+                            let result = match crossterm_event {
+                                CrosstermEvent::Key(e) => {
+                                    if matches!(
+                                        e.kind,
+                                        event::KeyEventKind::Press | event::KeyEventKind::Repeat
+                                    ) {
+                                        sender.send(Event::Key(e))
+                                    } else {
+                                        Ok(())
+                                    }
                                 }
+                                CrosstermEvent::Mouse(e) => sender.send(Event::Mouse(e)),
+                                CrosstermEvent::Resize(w, h) => sender.send(Event::Resize(w, h)),
+                                _ => Ok(()),
+                            };
+
+                            if result.is_err() {
+                                break;
                             }
-                            CrosstermEvent::Mouse(e) => sender.send(Event::Mouse(e)),
-                            CrosstermEvent::Resize(w, h) => sender.send(Event::Resize(w, h)),
-                            _ => unimplemented!(),
                         }
-                        .expect("failed to send terminal event")
+                        Ok(false) => {}
+                        Err(_) => break,
                     }
 
                     if last_tick.elapsed() >= tick_rate {
-                        sender.send(Event::Tick).expect("failed to send tick event");
+                        if sender.send(Event::Tick).is_err() {
+                            break;
+                        }
                         last_tick = Instant::now();
                     }
                 }
